@@ -1,141 +1,143 @@
-// tutorial1.js
-//import {CalendarDoc} from 'primereact';
-
 var data = [
-	{ author: "Thimoty Hunt", text: "Questo è un commento", id: "1" },
-	{ author: "Adriana Lima", text: "Questo è un *altro* commento", id: "2" }
-];
+    {author:"Mario Rossi", text: "Il mio commento"},
+    {author:"Elena Verdi", text:"Un *commento* colorato"}
+]
 
-class CommentBox extends React.Component {
-	
-	constructor(props) {
-		super(props);
-		this.state = {data: []};	
-		this.handleCommentSubmit = this.handleCommentSubmit.bind(this);	
-	}
+class CommentBox extends React.Component{
 
-	handleCommentSubmit(comment) {
-		
-		var comments = this.state.data;
-		var newComments = comments.concat([comment]);
-		this.setState({data: newComments});
+    constructor(props){
+        super(props);
+        this.state = {
+            data: []
+        }
 
-		$.ajax({
-			url: this.props.url,
-			dataType: 'json',
-			type: 'POST',
-			data: comment,
-			success: (data) => {
-				this.setState({ data: data });
-			},
-			error: (xhr, status, err) => {
-				console.error(this.props.url, status, err.toString());
-			}
-		})
-	}
+    }
 
- 	componentDidMount() {
+    handleCommentSubmit(comment){
+        $.ajax({
+            url: this.props.url,
+            dataType: 'json',
+            type: 'POST',
+            data: comment,
+            success: function(data) {
+              this.setState({data: data});
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+          });
+    }
 
-		const loadCommentsFromServer = () => {
-			$.ajax({
-				url: this.props.url,
-				dataType: 'json',
-				cache: false,
-				success: (data) => {
-					this.setState({ data: data });
-				},
-				error: (xhr, status, err) => {
-					console.error(this.props.url, status, err.toString());
-				}
-			});
-		} 
+    loadCommentsFromServer(){
+        $.ajax({
+            url: this.props.url,
+            dataType: 'json',
+            type: 'GET',
+            success: function(data) {
+              this.setState({data: data});
+            }.bind(this),
+            error: function(xhr, status, err) {
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+          });
+    }
 
-		loadCommentsFromServer();
-		setInterval(loadCommentsFromServer, this.props.pollInterval);
-	}
+    componentDidMount(){
 
-	render() {
-		return (
-			<div className="commentBox">
-				<h1>Commenti</h1>
-				<CommentList data={this.state.data}/>
-				<CommentForm onCommentSubmit={this.handleCommentSubmit} />
-			</div>
-		);
-	}
-};
+        this.loadCommentsFromServer();
+        setInterval(this.loadCommentsFromServer.bind(this), this.props.pollInterval);
 
-class CommentList extends React.Component {
-	render() {
-		var commentNodes = this.props.data.map((comment) => {
-			return (
-				<Comment author={comment.author} key={comment.id}>
-					{comment.text}
-				</Comment>
-			);
-		});
-		return (
-			<div className="commentList">
-				{commentNodes}
-			</div>
-		);
-	}
-};
+    }
 
-class CommentForm extends React.Component {
-
-	constructor(props) {
-		super(props);
-
-		this.handleSubmit = this.handleSubmit.bind(this);
-		this.onChangeBasic = this.onChangeBasic.bind(this);
-	}
-
-	onChangeBasic(e) {
-    	this.setState({ date1: e.value });
-	}
-
-
-	handleSubmit(e) {
-		e.preventDefault();
-		
-		var author = ReactDOM.findDOMNode(this.refs.author).value.trim();
-		var text = ReactDOM.findDOMNode(this.refs.text).value.trim();
-		console.log("ricevuto "+author+": "+text);
-		if (!text || !author) {
-			return;
-		}	
-		this.props.onCommentSubmit({author, text});
-		ReactDOM.findDOMNode(this.refs.author).value = '';
-		ReactDOM.findDOMNode(this.refs.text).value = '';
-		return;
-	}
-
-	render() {
-		return (
-			<form className="commentForm" onSubmit={this.handleSubmit}>
-				<input type="text" placeholder="Il tuo nome" ref="author" />
-				<input type="text" placeholder="Di' qualcosa..." ref="text" />
-				<input type="submit" value="Invia" />				
-			</form>
-		);
-	}
+    render(){
+        return(
+            <div className="commentBox">
+               <h1>Lista dei Commenti</h1>
+               <CommentList data={this.state.data} />
+               <CommentForm onCommentSubmit={this.handleCommentSubmit.bind(this)}/>
+            </div>
+        );
+    }
 };
 
 class Comment extends React.Component {
-	render() {
-		return (
-			<div className="comment">
-				<h2 className="commentAuthor">
-					{this.props.author}
-				</h2>
-				{this.props.children}
-			</div>
-		);
-	}
-};
+    
+    rawMarkup(myMarkupString){
+        var md = new Remarkable();
+        var rawMarkup = md.render(myMarkupString);
+        return { __html: rawMarkup };
+    }
+    
+    render(){
+
+        var md = new Remarkable();
+
+        return(
+            <div className="content">
+                <h2 className="contentAuthor">
+                    {this.props.author}
+
+                </h2>
+               <span dangerouslySetInnerHTML={this.rawMarkup(this.props.children)}></span>
+            </div>
+        )
+    }
+}
+
+class CommentList extends React.Component{
+
+    render(){
+        //importante
+        var risultatoMappaCommenti = this.props.data.map(
+            (msg, indice) => {return (
+                <Comment key={indice} className="comment" author={msg.author} >
+                    {msg.text}
+                </Comment>
+            );
+            }
+        );
+
+        return(
+            <div className="commentList">
+                {risultatoMappaCommenti}
+            </div>
+        );
+    }
+}
+
+class CommentForm extends React.Component{
+
+    handleSubmit(event) {//impedisco il comportamento di default
+         event.preventDefault();
+         var author = ReactDOM.findDOMNode(this.refs.author).value;
+         var text = ReactDOM.findDOMNode(this.refs.text).value;
+
+         if(!text || !author){
+             return;
+         }
+
+         console.log("SERVER " + author + " " + text);
+         this.props.onCommentSubmit({ author:author, text:text});
+         
+         //Pulisco i valori dopo l'invio al server
+         ReactDOM.findDOMNode(this.refs.author).value='';
+         ReactDOM.findDOMNode(this.refs.text).value='';
+
+         return;
+    }
+
+    render(){
+        return(
+            <form className="commentForm" onSubmit={this.handleSubmit.bind(this)}>
+                <input type="text" placeholder="Il tuo nome..." ref="author"/>
+                <input type="text" placeholder="Il tuo commento" ref="text"/>
+                <input type="submit" value="Invia"/>
+            </form>
+        );
+    }
+}
 
 ReactDOM.render(
-	<CommentBox url='/api/comments' pollInterval={2000}/>,
-	document.getElementById('content')
-);
+    <CommentBox url="/api/comments"  pollInterval="2000" />,
+    document.getElementById('content')
+)
